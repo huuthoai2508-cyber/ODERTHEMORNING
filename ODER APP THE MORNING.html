@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Morning Coffee - App Đặt Món & Quản Lý</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #d35400;
+      --secondary: #2c3e50;
+      --bg: #f8f9fa;
+      --white: #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg); color: #333; padding-bottom: 90px; }
+    
+    header {
+      background: linear-gradient(135deg, #2c3e50, #d35400);
+      color: white; padding: 15px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    header h1 { font-size: 1.1rem; font-weight: bold; }
+    .nav-btn {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 0.85rem;
+    }
+
+    .time-banner {
+      background: #fff3cd; color: #856404; padding: 8px 15px; text-align: center;
+      font-size: 0.85rem; font-weight: bold; border-bottom: 1px solid #ffeeba;
+    }
+
+    .container { max-width: 600px; margin: auto; padding: 15px; }
+    
+    .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .menu-card {
+      background: white; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column;
+      justify-content: space-between; padding: 12px;
+    }
+    .menu-title { font-weight: bold; font-size: 0.95rem; margin-bottom: 5px; color: #2c3e50; }
+    .menu-price { color: var(--primary); font-weight: bold; font-size: 0.9rem; }
+    .add-btn {
+      background: var(--primary); color: white; border: none;
+      padding: 6px 10px; border-radius: 6px; margin-top: 10px; cursor: pointer;
+      font-weight: bold; font-size: 0.85rem;
+    }
+    .add-btn:active { transform: scale(0.95); }
+
+    .cart-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; border-top: 1px solid #ddd; padding: 12px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 99;
+    }
+    .btn-checkout {
+      background: #27ae60; color: white; border: none;
+      padding: 10px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem;
+    }
+
+    #admin-view { display: none; }
+    .order-card {
+      background: white; border-radius: 10px; padding: 15px; margin-bottom: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #f39c12;
+    }
+    .order-card.done { border-left-color: #27ae60; opacity: 0.75; }
+    .order-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; font-size: 0.95rem; }
+    .order-items { font-size: 0.9rem; color: #555; margin-bottom: 10px; }
+    .order-actions { display: flex; gap: 8px; }
+    .btn-status { border: none; padding: 6px 12px; border-radius: 4px; color: white; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+    .btn-complete { background: #27ae60; }
+    .btn-delete { background: #e74c3c; }
+
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: white; width: 90%; max-width: 380px; border-radius: 12px; padding: 20px;
+    }
+    .cart-item-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
+    .close-modal { background: #ccc; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1><i class="fa-solid fa-mug-hot"></i> The Morning Coffee</h1>
+    <button class="nav-btn" onclick="toggleMode()" id="mode-btn">
+      <i class="fa-solid fa-user-gear"></i> Quản lý
+    </button>
+  </header>
+
+  <div class="time-banner">
+    <i class="fa-regular fa-clock"></i> Giờ phục vụ: 06:00 AM - 09:00 AM hàng ngày
+  </div>
+
+  <div id="customer-view" class="container">
+    <h3 style="margin-bottom: 12px; color: #444; font-size: 1rem;">Thực Đơn Quán</h3>
+    <div class="menu-grid" id="menu-list"></div>
+  </div>
+
+  <div class="cart-bar" id="cart-bar">
+    <div>
+      <span style="font-size: 0.85rem; color: #666;">Giỏ hàng:</span><br>
+      <b style="color: var(--primary);"><span id="cart-count">0</span> món | <span id="cart-total">0K</span></b>
+    </div>
+    <button class="btn-checkout" onclick="openCartModal()">Xem Giỏ & Đặt</button>
+  </div>
+
+  <div id="admin-view" class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h3 style="font-size: 1rem;">Đơn Hàng Trong Ngày</h3>
+      <span id="revenue-tag" style="background: #27ae60; color: white; padding: 5px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">Doanh thu: 0K</span>
+    </div>
+    <div id="orders-list">Chưa có đơn hàng nào...</div>
+  </div>
+
+  <div class="modal" id="cart-modal">
+    <div class="modal-content">
+      <h3 style="font-size: 1.1rem; margin-bottom: 10px;">Xác Nhận Đơn Món</h3>
+      <div id="cart-details" style="margin: 10px 0; max-height: 180px; overflow-y: auto; border-bottom: 1px solid #eee; padding-bottom: 10px;"></div>
+      <div style="margin-bottom: 15px;">
+        <label style="font-size: 0.85rem; font-weight: bold;">Số bàn hoặc Tên của bạn:</label>
+        <input type="text" id="table-input" placeholder="Ví dụ: Bàn 1 hoặc Anh Nam" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem;">
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <button class="close-modal" onclick="closeCartModal()">Hủy</button>
+        <button class="btn-checkout" id="submit-btn" onclick="submitOrder()">Gửi Đơn Ngay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hệ thống Form & Frame ẩn đã được liên kết với URL Apps Script MỚI -->
+  <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+  <form id="sheet-form" action="https://script.google.com/macros/s/AKfycbxwclNRnvFdVTfu19cdhnpvtth8llj7UZl77ODReJAw0nsCrq2gUkVqWeFft-sdz9oFzw/exec" method="POST" target="hidden_iframe" style="display:none;">
+    <input type="hidden" name="id" id="field-id">
+    <input type="hidden" name="table" id="field-table">
+    <input type="hidden" name="items" id="field-items">
+    <input type="hidden" name="total" id="field-total">
+    <input type="hidden" name="time" id="field-time">
+  </form>
+
+  <script>
+    const menuData = [
+      { id: 1, name: "CÀ PHÊ ĐEN ĐÁ", price: 17 },
+      { id: 2, name: "CÀ PHÊ SỮA ĐÁ", price: 20 },
+      { id: 3, name: "BẠC XỈU", price: 20 },
+      { id: 4, name: "SỮA TƯƠI CÀ PHÊ", price: 20 },
+      { id: 5, name: "CÀ PHÊ MUỐI", price: 25 },
+      { id: 6, name: "TRÀ LIPTON", price: 17 }
+    ];
+
+    let cart = [];
+    let orders = JSON.parse(localStorage.getItem('coffee_orders')) || [];
+    let isAdmin = false;
+
+    function renderMenu() {
+      const container = document.getElementById('menu-list');
+      container.innerHTML = menuData.map(item => `
+        <div class="menu-card">
+          <div>
+            <div class="menu-title">${item.name}</div>
+            <div class="menu-price">${item.price}K</div>
+          </div>
+          <button class="add-btn" onclick="addToCart(${item.id})">+ Thêm</button>
+        </div>
+      `).join('');
+    }
+
+    function addToCart(id) {
+      const item = menuData.find(m => m.id === id);
+      const exist = cart.find(c => c.id === id);
+      if(exist) {
+        exist.qty++;
+      } else {
+        cart.push({...item, qty: 1});
+      }
+      updateCartBar();
+    }
+
+    function updateCartBar() {
+      const count = cart.reduce((sum, item) => sum + item.qty, 0);
+      const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      document.getElementById('cart-count').innerText = count;
+      document.getElementById('cart-total').innerText = total + "K";
+    }
+
+    function openCartModal() {
+      if(cart.length === 0) return alert("Giỏ hàng của bạn đang trống!");
+      const details = document.getElementById('cart-details');
+      let total = 0;
+      details.innerHTML = cart.map(i => {
+        let sub = i.price * i.qty;
+        total += sub;
+        return `<div class="cart-item-row"><span>${i.name} (x${i.qty})</span><b>${sub}K</b></div>`;
+      }).join('') + `<div style="text-align:right; margin-top:8px; font-weight:bold; color:var(--primary);">Tổng: ${total}K</div>`;
+      
+      document.getElementById('cart-modal').style.display = 'flex';
+    }
+
+    function closeCartModal() {
+      document.getElementById('cart-modal').style.display = 'none';
+    }
+
+    function submitOrder() {
+      const table = document.getElementById('table-input').value.trim();
+      if(!table) return alert("Vui lòng nhập số bàn hoặc tên của bạn!");
+
+      const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      const itemsText = cart.map(i => `${i.name} x${i.qty}`).join(', ');
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) + ' ' + now.toLocaleDateString('vi-VN');
+      const orderId = 'DH' + Date.now().toString().slice(-6);
+
+      // Lưu đơn vào bộ nhớ local của ứng dụng
+      const newOrder = {
+        id: orderId,
+        table: table,
+        items: [...cart],
+        total: total,
+        time: timeStr,
+        status: 'pending'
+      };
+      orders.unshift(newOrder);
+      localStorage.setItem('coffee_orders', JSON.stringify(orders));
+
+      // Đưa thông tin vào form ẩn rồi submit sang Google Sheet
+      document.getElementById('field-id').value = orderId;
+      document.getElementById('field-table').value = table;
+      document.getElementById('field-items').value = itemsText;
+      document.getElementById('field-total').value = total + 'K';
+      document.getElementById('field-time').value = timeStr;
+
+      document.getElementById('sheet-form').submit();
+
+      alert("Đặt món thành công! Đơn hàng đã được gửi tới Google Sheet.");
+
+      cart = [];
+      updateCartBar();
+      closeCartModal();
+      document.getElementById('table-input').value = '';
+      
+      if(isAdmin) renderOrders();
+    }
+
+    function toggleMode() {
+      if(!isAdmin) {
+        const pass = prompt("Nhập mật khẩu quản lý (Mặc định: 1234):");
+        if(pass === "1234") {
+          isAdmin = true;
+          document.getElementById('customer-view').style.display = 'none';
+          document.getElementById('cart-bar').style.display = 'none';
+          document.getElementById('admin-view').style.display = 'block';
+          document.getElementById('mode-btn').innerHTML = `<i class="fa-solid fa-store"></i> Đặt món`;
+          renderOrders();
+        } else if(pass !== null) {
+          alert("Sai mật khẩu!");
+        }
+      } else {
+        isAdmin = false;
+        document.getElementById('customer-view').style.display = 'block';
+        document.getElementById('cart-bar').style.display = 'flex';
+        document.getElementById('admin-view').style.display = 'none';
+        document.getElementById('mode-btn').innerHTML = `<i class="fa-solid fa-user-gear"></i> Quản lý`;
+      }
+    }
+
+    function renderOrders() {
+      const container = document.getElementById('orders-list');
+      if(orders.length === 0) {
+        container.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>Chưa có đơn hàng nào trong ngày</p>";
+        document.getElementById('revenue-tag').innerText = "Doanh thu: 0K";
+        return;
+      }
+
+      let totalRevenue = 0;
+      container.innerHTML = orders.map(o => {
+        if(o.status === 'done') totalRevenue += o.total;
+        return `
+          <div class="order-card ${o.status === 'done' ? 'done' : ''}">
+            <div class="order-header">
+              <span>📍 ${o.table}</span>
+              <span>⏰ ${o.time}</span>
+            </div>
+            <div class="order-items">
+              ${Array.isArray(o.items) ? o.items.map(i => `• ${i.name} x${i.qty}`).join('<br>') : o.items}
+            </div>
+            <div style="font-weight:bold; margin-bottom:10px; color: var(--primary); font-size:0.9rem;">
+              Tổng tiền: ${o.total}K
+            </div>
+            <div class="order-actions">
+              ${o.status === 'pending' 
+                ? `<button class="btn-status btn-complete" onclick="markDone('${o.id}')">Hoàn thành</button>` 
+                : `<span style="color:#27ae60; font-weight:bold; font-size:0.85rem;">✓ Đã xong</span>`}
+              <button class="btn-status btn-delete" onclick="deleteOrder('${o.id}')">Xóa</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('revenue-tag').innerText = `Doanh thu: ${totalRevenue}K`;
+    }
+
+    function markDone(id) {
+      orders = orders.map(o => o.id === id ? {...o, status: 'done'} : o);
+      localStorage.setItem('coffee_orders', JSON.stringify(orders));
+      renderOrders();
+    }
+
+    function deleteOrder(id) {
+      if(confirm("Bạn có chắc muốn xóa đơn này?")) {
+        orders = orders.filter(o => o.id !== id);
+        localStorage.setItem('coffee_orders', JSON.stringify(orders));
+        renderOrders();
+      }
+    }
+
+    renderMenu();
+  </script>
+</body>
+</html>
